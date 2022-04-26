@@ -69,6 +69,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 	var err error
 
 	// Configure inbound listener.
+	// TODO markan:filter figure this out; do I need a filter config? Forward?
 	resources[0], err = s.makeInboundListener(cfgSnap, PublicListenerName)
 	if err != nil {
 		return nil, err
@@ -140,6 +141,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 
 		// Generate the upstream listeners for when they are explicitly set with a local bind port or socket path
 		if upstreamCfg != nil && upstreamCfg.HasLocalPortOrSocket() {
+			// TODO markan nothing needed here, revisit
 			filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
 				routeName:   uid.EnvoyID(),
 				clusterName: clusterName,
@@ -165,6 +167,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 		// Below we create a filter chain per upstream, rather than a listener per upstream
 		// as we do for explicit upstreams above.
 
+		// TODO markan nothing needed here, revisit
 		filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
 			routeName:   uid.EnvoyID(),
 			clusterName: clusterName,
@@ -235,6 +238,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 
 				filterName := fmt.Sprintf("%s.%s.%s.%s", uid.Name, uid.NamespaceOrDefault(), uid.PartitionOrDefault(), cfgSnap.Datacenter)
 
+				// TODO markan nothing needed here, revisit
 				filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
 					clusterName: "passthrough~" + sni,
 					filterName:  filterName,
@@ -261,6 +265,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 		if meshConf := cfgSnap.MeshConfig(); meshConf == nil ||
 			!meshConf.TransparentProxy.MeshDestinationsOnly {
 
+			// TODO markan nothing needed here, revisit
 			filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
 				clusterName: OriginalDestinationClusterName,
 				filterName:  OriginalDestinationClusterName,
@@ -306,6 +311,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 
 		upstreamListener := makeListener(uid.EnvoyID(), u, envoy_core_v3.TrafficDirection_OUTBOUND)
 
+		// TODO markan nothing needed here, revisit
 		filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
 			// TODO (SNI partition) add partition for upstream SNI
 			clusterName: connect.UpstreamSNI(u, "", cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain),
@@ -345,6 +351,7 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 			clusterName = makeExposeClusterName(path.LocalPathPort)
 		}
 
+		// TODO markan:filter. Exposed client checks are likely coming from untrusted sources, so we should SANITIZE things
 		l, err := s.makeExposedCheckListener(cfgSnap, clusterName, path)
 		if err != nil {
 			return nil, err
@@ -524,17 +531,20 @@ func (s *ResourceGenerator) listenersFromSnapshotGateway(cfgSnap *proxycfg.Confi
 
 		switch cfgSnap.Kind {
 		case structs.ServiceKindTerminatingGateway:
+			// TODO markan:filter review
 			l, err = s.makeTerminatingGatewayListener(cfgSnap, a.name, a.Address, a.Port)
 			if err != nil {
 				return nil, err
 			}
 		case structs.ServiceKindIngressGateway:
+			// TODO markan:filter review
 			listeners, err := s.makeIngressGatewayListeners(a.Address, cfgSnap)
 			if err != nil {
 				return nil, err
 			}
 			resources = append(resources, listeners...)
 		case structs.ServiceKindMeshGateway:
+			// TODO markan:filter review
 			l, err = s.makeMeshGatewayListener(a.name, a.Address, a.Port, cfgSnap)
 			if err != nil {
 				return nil, err
@@ -859,6 +869,9 @@ func (s *ResourceGenerator) makeInboundListener(cfgSnap *proxycfg.ConfigSnapshot
 		if err != nil {
 			return nil, err
 		}
+
+		filterOpts.forwardClientDetails = true
+		filterOpts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_APPEND_FORWARD
 	}
 	filter, err := makeListenerFilter(filterOpts)
 	if err != nil {
@@ -1146,6 +1159,11 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 
 		opts.cluster = ""
 		opts.useRDS = true
+
+		opts.forwardClientDetails = true
+		// TODO markan:filter Connection may not be mTLS, so then ALWAYS_FORWARD_ONLY. For mTLS connections we might want APPEND_FORWARD.
+		// Open question; how do I determine if this is mTLS or not?
+		opts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_ALWAYS_FORWARD_ONLY
 	}
 
 	filter, err := makeListenerFilter(opts)
@@ -1366,16 +1384,18 @@ func (s *ResourceGenerator) getAndModifyUpstreamConfigForListener(
 }
 
 type listenerFilterOpts struct {
-	useRDS           bool
-	protocol         string
-	filterName       string
-	routeName        string
-	cluster          string
-	statPrefix       string
-	routePath        string
-	requestTimeoutMs *int
-	ingressGateway   bool
-	httpAuthzFilter  *envoy_http_v3.HttpFilter
+	useRDS               bool
+	protocol             string
+	filterName           string
+	routeName            string
+	cluster              string
+	statPrefix           string
+	routePath            string
+	requestTimeoutMs     *int
+	ingressGateway       bool
+	httpAuthzFilter      *envoy_http_v3.HttpFilter
+	forwardClientDetails bool
+	forwardClientPolicy  envoy_http_v3.HttpConnectionManager_ForwardClientCertDetails
 }
 
 func makeListenerFilter(opts listenerFilterOpts) (*envoy_listener_v3.Filter, error) {
@@ -1511,6 +1531,18 @@ func makeHTTPFilter(opts listenerFilterOpts) (*envoy_listener_v3.Filter, error) 
 
 	if opts.protocol == "http2" || opts.protocol == "grpc" {
 		cfg.Http2ProtocolOptions = &envoy_core_v3.Http2ProtocolOptions{}
+	}
+
+	// Note the default leads to setting HttpConnectionManager_SANITIZE
+	if opts.forwardClientDetails {
+		cfg.ForwardClientCertDetails = opts.forwardClientPolicy
+		cfg.SetCurrentClientCertDetails = &envoy_http_v3.HttpConnectionManager_SetCurrentClientCertDetails{
+			Subject: &wrappers.BoolValue{Value: true},
+			Cert:    true,
+			Chain:   true,
+			Dns:     true,
+			Uri:     true,
+		}
 	}
 
 	// Like injectConnectFilters for L4, here we ensure that the first filter
