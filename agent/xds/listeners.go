@@ -869,9 +869,10 @@ func (s *ResourceGenerator) makeInboundListener(cfgSnap *proxycfg.ConfigSnapshot
 		if err != nil {
 			return nil, err
 		}
-
-		filterOpts.forwardClientDetails = true
-		filterOpts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_APPEND_FORWARD
+		if meshConfig := cfgSnap.MeshConfig(); meshConfig == nil || !meshConfig.SanitizeXForwardedClientCert {
+			filterOpts.forwardClientDetails = true
+			filterOpts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_APPEND_FORWARD
+		}
 	}
 	filter, err := makeListenerFilter(filterOpts)
 	if err != nil {
@@ -1160,10 +1161,12 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 		opts.cluster = ""
 		opts.useRDS = true
 
-		opts.forwardClientDetails = true
-		// TODO markan:filter Connection may not be mTLS, so then ALWAYS_FORWARD_ONLY. For mTLS connections we might want APPEND_FORWARD.
-		// Open question; how do I determine if this is mTLS or not?
-		opts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_ALWAYS_FORWARD_ONLY
+		if meshConfig := cfgSnap.MeshConfig(); meshConfig == nil || !meshConfig.SanitizeXForwardedClientCert {
+			opts.forwardClientDetails = true
+			// TODO markan:filter Connection may not be mTLS, so then ALWAYS_FORWARD_ONLY. For mTLS connections we might want APPEND_FORWARD.
+			// Open question; how do I determine if this is mTLS or not?
+			opts.forwardClientPolicy = envoy_http_v3.HttpConnectionManager_ALWAYS_FORWARD_ONLY
+		}
 	}
 
 	filter, err := makeListenerFilter(opts)

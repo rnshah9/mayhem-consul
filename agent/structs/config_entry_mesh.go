@@ -15,6 +15,8 @@ type MeshConfigEntry struct {
 
 	TLS *MeshTLSConfig `json:",omitempty"`
 
+	SanitizeXForwardedClientCert bool `json:",omitempty"`
+
 	Meta               map[string]string `json:",omitempty"`
 	acl.EnterpriseMeta `hcl:",squash" mapstructure:",squash"`
 	RaftIndex
