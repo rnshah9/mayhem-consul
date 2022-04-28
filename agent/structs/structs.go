@@ -1333,9 +1333,8 @@ func (s *NodeService) Validate() error {
 					"services"))
 		}
 
-		if s.Port == 0 && s.SocketPath == "" {
-			result = multierror.Append(result, fmt.Errorf(
-				"Port or SocketPath must be set for a Connect proxy"))
+		if s.Port == 0 {
+			result = multierror.Append(result, fmt.Errorf("Port must be non-zero for a %s", s.Kind))
 		}
 
 		if s.Connect.Native {
@@ -1464,6 +1463,16 @@ func (s *NodeService) Validate() error {
 					"A SidecarService cannot have a nested SidecarService"))
 			}
 		}
+
+		if s.Connect.SidecarService.Port == 0 {
+			result = multierror.Append(result, fmt.Errorf(
+				"Side car service must have non-zero port"))
+		}
+	}
+
+	if s.Connect.Native && s.Port == 0 {
+		result = multierror.Append(result, fmt.Errorf(
+			"Connect native service must have non-zero port"))
 	}
 
 	return result
