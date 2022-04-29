@@ -1,19 +1,18 @@
 name: Mayhem
 on:
   push:
-  pull_request: 
+  pull_request:
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-permissions:
-  packages: write
-
-jobs: 
+jobs:
   build:
-    name: '${{ matrix.os }} shared=${{ matrix.shared }} ${{ matrix.build_type }}'
+    permissions:
+      packages: write
+    name: "${{ matrix.os }} shared=${{ matrix.shared }} ${{ matrix.build_type }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -59,4 +58,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@v1
         with:
           sarif_file: sarif
-
