@@ -10,8 +10,7 @@ env:
 
 jobs:
   build:
-    permissions:
-      packages: write
+    permissions: write-all
     name: "${{ matrix.os }} shared=${{ matrix.shared }} ${{ matrix.build_type }}"
     runs-on: ${{ matrix.os }}
     strategy:
