@@ -1,6 +1,5 @@
-project: mayhem-consul
+project: rnshah9/mayhem-consul
 target: consul
-image: ghcr.io/rnshah9/mayhem-consul
 
 cmds:
   - cmd: /consul validate @@
