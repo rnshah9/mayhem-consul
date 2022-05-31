@@ -1,0 +1,7 @@
+project: rnshah9/mayhem-consul
+target: consul-agent
+
+cmds:
+  - cmd: /consul agent --config-file @@ 
+    timeout: 10
+    filepath: /test.json

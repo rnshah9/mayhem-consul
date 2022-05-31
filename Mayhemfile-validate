@@ -1,0 +1,7 @@
+project: rnshah9/mayhem-consul
+target: consul-validate
+
+cmds:
+  - cmd: /consul validate @@
+    filepath: /test.json
+    timeout: 10
