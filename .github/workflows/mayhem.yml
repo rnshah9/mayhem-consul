@@ -51,7 +51,21 @@ jobs:
         uses: ForAllSecure/mcode-action@v1
         with:
           mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
-          args: --image ${{ steps.meta.outputs.tags }}
+          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-validate
+          sarif-output: sarif
+
+      - name: Start analysis
+        uses: ForAllSecure/mcode-action@v1
+        with:
+          mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
+          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-agent
+          sarif-output: sarif
+
+      - name: Start analysis
+        uses: ForAllSecure/mcode-action@v1
+        with:
+          mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
+          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-agent-dev
           sarif-output: sarif
 
       - name: Upload SARIF file(s)
