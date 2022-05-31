@@ -7,6 +7,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  VALIDATE: Mayhemfile-validate
+  AGENT: Mayhemfile-agent
+  AGENT_DEV: Mayhemfile-agent-dev
+
 
 jobs:
   build:
@@ -47,25 +51,25 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Start analysis
+      - name: Start analysis for validate
         uses: ForAllSecure/mcode-action@v1
         with:
           mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
-          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-validate
+          args: --image ${{ steps.meta.outputs.tags }} --file ${{ env.VALIDATE }}
           sarif-output: sarif
 
-      - name: Start analysis
+      - name: Start analysis for agent
         uses: ForAllSecure/mcode-action@v1
         with:
           mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
-          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-agent
+          args: --image ${{ steps.meta.outputs.tags }} --file ${{ env.AGENT }}
           sarif-output: sarif
 
-      - name: Start analysis
+      - name: Start analysis for agent-dev
         uses: ForAllSecure/mcode-action@v1
         with:
           mayhem-token: ${{ secrets.MAYHEM_TOKEN }}
-          args: --image ${{ steps.meta.outputs.tags }} --file Mayhemfile-agent-dev
+          args: --image ${{ steps.meta.outputs.tags }} --file ${{ env.AGENT_DEV }}
           sarif-output: sarif
 
       - name: Upload SARIF file(s)
